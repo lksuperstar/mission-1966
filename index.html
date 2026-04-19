@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mission 1966 – Rettet den Geburtstag</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f5f5f5;color:#111;margin:0}
+    .wrap{max-width:420px;margin:0 auto;padding:24px 16px;min-height:100vh;display:flex;align-items:center}
+    .card{background:#fff;border:1px solid #ddd;border-radius:16px;padding:24px;width:100%;box-shadow:0 6px 24px rgba(0,0,0,.05)}
+    h1{font-size:28px;margin:0 0 8px} p{color:#555;line-height:1.45} label{display:block;font-weight:bold;margin:20px 0 8px}
+    input{width:100%;padding:14px 16px;border:1px solid #bbb;border-radius:12px;font-size:16px;box-sizing:border-box}
+    button{width:100%;margin-top:16px;padding:14px 16px;border:none;border-radius:12px;background:#111;color:#fff;font-size:16px;font-weight:bold}
+    .msg{margin-top:12px;color:#b00020;min-height:20px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Mission 1966</h1>
+      <p>Rettet den Geburtstag</p>
+      <label for="code">Zugangscode</label>
+      <input id="code" type="password" autocomplete="off" placeholder="Code eingeben" />
+      <button id="submitBtn">Spiel öffnen</button>
+      <div class="msg" id="msg"></div>
+    </div>
+  </div>
+  <script>
+    const btn = document.getElementById('submitBtn');
+    btn.addEventListener('click', async () => {
+      const code = document.getElementById('code').value.trim();
+      const msg = document.getElementById('msg');
+      msg.textContent = '';
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          msg.textContent = data.error || 'Code ungültig.';
+          return;
+        }
+        localStorage.setItem('mission1966_code', code);
+        localStorage.setItem('mission1966_role', data.role);
+        location.href = '/overview.html';
+      } catch (e) {
+        msg.textContent = 'Verbindung fehlgeschlagen.';
+      }
+    });
+  </script>
+</body>
+</html>
