@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mission 1966 – Übersicht</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f5f5f5;color:#111;margin:0}
+    .wrap{max-width:900px;margin:0 auto;padding:20px 16px 40px}
+    .top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    h1{font-size:28px;margin:0}
+    .card{background:#fff;border:1px solid #ddd;border-radius:16px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.05);margin-top:16px}
+    .goto{display:flex;gap:10px}.goto input{flex:1;padding:12px;border-radius:10px;border:1px solid #bbb;font-size:16px}
+    .goto button,.btn{padding:12px 14px;border:none;border-radius:10px;background:#111;color:#fff;font-weight:bold;cursor:pointer}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+    @media (min-width:700px){.grid{grid-template-columns:repeat(5,1fr)}}
+    .tile{display:flex;align-items:center;justify-content:center;min-height:56px;border-radius:12px;text-decoration:none;color:#111;border:1px solid #ccc;background:#fafafa;font-weight:bold}
+    .tile.solved{background:#e8f5e9;border-color:#2e7d32;color:#1b5e20}
+    .tile.inactive{opacity:.45;pointer-events:none}
+    .muted{color:#666}
+    .admin{border:2px solid #111}
+    .danger{background:#fff;color:#b00020;border:2px solid #b00020}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>Erinnerungsfragmente</h1>
+        <div class="muted" id="roleInfo"></div>
+      </div>
+      <div>
+        <button class="btn" onclick="location.href='/'">Zur Willkommensseite</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="goto">
+        <input id="fragmentInput" type="number" min="1" max="50" placeholder="Fragmentnummer eingeben" />
+        <button onclick="goToFragment()">Öffnen</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="muted">Tippe auf ein Erinnerungsfragment, um es zu öffnen.</div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="card admin" id="adminPanel" style="display:none">
+      <strong>Adminbereich</strong>
+      <div class="muted" style="margin-top:6px">Gesamte Mission zurücksetzen oder einzelne Fragmente direkt in der Fragmentansicht zurücksetzen.</div>
+      <button class="btn danger" style="margin-top:14px" onclick="resetMission()">Gesamte Mission zurücksetzen</button>
+      <div id="adminMsg" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <script>
+    const code = localStorage.getItem('mission1966_code');
+    if(!code) location.href = '/';
+
+    async function bootstrap(){
+      const res = await fetch('/api/bootstrap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+      const data = await res.json();
+      if(!res.ok){
+        localStorage.removeItem('mission1966_code');
+        localStorage.removeItem('mission1966_role');
+        location.href = '/';
+        return;
+      }
+
+      const fragments = data.fragments || [];
+      document.getElementById('roleInfo').textContent = data.role === 'admin' ? 'Admin-Zugang aktiv' : 'Spieler-Zugang aktiv';
+      if(data.role === 'admin') document.getElementById('adminPanel').style.display = 'block';
+
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+      fragments.forEach(f => {
+        const a = document.createElement('a');
+        a.className = 'tile' + (f.is_solved ? ' solved' : '') + (f.is_active ? '' : ' inactive');
+        a.href = f.is_active ? `/fragment.html?id=${f.id}` : '#';
+        a.textContent = f.id;
+        grid.appendChild(a);
+      });
+    }
+
+    function goToFragment(){
+      const n = Number(document.getElementById('fragmentInput').value);
+      if(Number.isInteger(n) && n >= 1 && n <= 50){
+        location.href = `/fragment.html?id=${n}`;
+      }
+    }
+
+    async function resetMission(){
+      const ok = confirm('Willst du wirklich den gesamten Fortschritt für alle zurücksetzen?');
+      if(!ok) return;
+      const res = await fetch('/api/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+      const data = await res.json();
+      const box = document.getElementById('adminMsg');
+      if(res.ok){
+        box.style.color = '#1b5e20';
+        box.textContent = 'Die Mission wurde zurückgesetzt.';
+        bootstrap();
+      } else {
+        box.style.color = '#b00020';
+        box.textContent = data.error || 'Zurücksetzen fehlgeschlagen.';
+      }
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>
