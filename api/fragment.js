@@ -7,7 +7,7 @@ const supabase = createClient(
 
 const BUCKET = 'mission-images';
 
-function buildImageUrl(baseName, projectUrl) {
+function buildImageUrlCandidates(baseName, projectUrl) {
   if (!baseName) return null;
 
   const extensions = ['.jpg', '.jpeg', '.png', '.webp'];
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
   let introImageCandidates = null;
 
   if (fragment.intro_image_name) {
-    introImageCandidates = buildImageUrl(
+    introImageCandidates = buildImageUrlCandidates(
       fragment.intro_image_name,
       projectUrl
     );
@@ -55,6 +55,6 @@ export default async function handler(req, res) {
   return res.status(200).json({
     ...fragment,
     progress,
-    introImageCandidates,
+    introImageCandidates
   });
 }
