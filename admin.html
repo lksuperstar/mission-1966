@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mission 1966 – Admin</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f5f5f5;color:#111;margin:0}.wrap{max-width:820px;margin:0 auto;padding:20px 16px 40px}.card{background:#fff;border:1px solid #ddd;border-radius:16px;padding:18px;box-shadow:0 6px 24px rgba(0,0,0,.05);margin-bottom:16px}h1{font-size:28px;margin:0 0 12px}.muted{color:#666}.btn{padding:12px 14px;border:none;border-radius:10px;background:#111;color:#fff;font-weight:bold;cursor:pointer;text-decoration:none;display:inline-block}.danger{background:#fff;color:#b00020;border:2px solid #b00020}.ok{color:#1b5e20}.err{color:#b00020}input{width:100%;padding:14px;border:1px solid #bbb;border-radius:12px;font-size:18px;box-sizing:border-box;text-align:center;letter-spacing:4px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}.item{border:1px solid #ddd;border-radius:12px;padding:12px;background:#fafafa}.item.solved{background:#e8f5e9;border-color:#2e7d32}.item strong{display:block;margin-bottom:8px}@media(min-width:700px){.grid{grid-template-columns:repeat(5,1fr)}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card"><h1>Adminbereich</h1><p class="muted">Hier kannst du den Fortschritt der Mission zurücksetzen. Spieler sehen diese Seite nicht in der normalen Navigation.</p><a class="btn" href="/overview.html">Zur Übersicht</a></div>
+    <div class="card" id="loginCard"><strong>Admin-PIN</strong><div style="height:10px"></div><input id="adminCode" type="password" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="••••" /><div style="height:12px"></div><button class="btn" onclick="loginAdmin()">Admin öffnen</button><div id="loginMsg" style="margin-top:10px"></div></div>
+    <div id="adminPanel" style="display:none">
+      <div class="card"><strong>Gesamten Fortschritt zurücksetzen</strong><p class="muted">Setzt alle 50 Erinnerungsfragmente für alle Spieler zurück.</p><button class="btn danger" onclick="resetAll()">Gesamte Mission zurücksetzen</button><div id="resetMsg" style="margin-top:10px"></div></div>
+      <div class="card"><strong>Einzelnes Fragment zurücksetzen</strong><p class="muted">Tippe auf „Zurücksetzen“ beim jeweiligen Fragment.</p><div class="grid" id="grid"></div></div>
+    </div>
+  </div>
+<script>
+  let adminCode = sessionStorage.getItem('mission1966_admin_code') || '';
+  if(adminCode) showAdmin();
+  async function loginAdmin(){const code=document.getElementById('adminCode').value.trim(); const msg=document.getElementById('loginMsg'); msg.textContent=''; const res=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})}); const data=await res.json(); if(res.ok&&data.role==='admin'){adminCode=code;sessionStorage.setItem('mission1966_admin_code',code);showAdmin();} else {msg.className='err';msg.textContent='Admin-PIN ist nicht korrekt.';}}
+  async function showAdmin(){document.getElementById('loginCard').style.display='none';document.getElementById('adminPanel').style.display='block';await loadFragments();}
+  async function loadFragments(){const res=await fetch('/api/bootstrap',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:adminCode})}); const data=await res.json(); const grid=document.getElementById('grid'); grid.innerHTML=''; (data.fragments||[]).filter(f=>f.is_active).forEach(f=>{const div=document.createElement('div'); div.className='item'+(f.is_solved?' solved':''); div.innerHTML=`<strong>Fragment ${f.id}</strong><div class="muted">${f.is_solved?'gelöst':'offen'}</div><button class="btn danger" style="margin-top:10px" onclick="resetOne(${f.id})">Zurücksetzen</button>`; grid.appendChild(div);});}
+  async function resetAll(){if(!confirm('Wirklich alle Fragmente zurücksetzen?'))return; const res=await fetch('/api/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:adminCode})}); const data=await res.json(); const msg=document.getElementById('resetMsg'); if(res.ok){msg.className='ok';msg.textContent='Die gesamte Mission wurde zurückgesetzt.';loadFragments();} else {msg.className='err';msg.textContent=data.error||'Zurücksetzen fehlgeschlagen.';}}
+  async function resetOne(id){if(!confirm(`Fragment ${id} wirklich zurücksetzen?`))return; const res=await fetch('/api/reset-fragment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:adminCode,id})}); if(res.ok){await loadFragments();} else {alert('Zurücksetzen fehlgeschlagen.');}}
+  document.getElementById('adminCode').addEventListener('keydown',e=>{if(e.key==='Enter')loginAdmin();});
+</script>
+</body>
+</html>
