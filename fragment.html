@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mission 1966 – Fragment</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f5f5f5;color:#111;margin:0}.wrap{max-width:760px;margin:0 auto;padding:20px 16px 40px}.card{background:#fff;border:1px solid #ddd;border-radius:16px;padding:18px;box-shadow:0 6px 24px rgba(0,0,0,.05);margin-bottom:16px}h1{font-size:28px;margin:0 0 8px}.muted{color:#666}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.btn{padding:12px 14px;border:none;border-radius:10px;background:#111;color:#fff;font-weight:bold;cursor:pointer;text-decoration:none;display:inline-block}input[type='text'],input[type='file']{width:100%;padding:12px;border-radius:10px;border:1px solid #bbb;box-sizing:border-box;font-size:16px}.success{padding:14px;border-radius:12px;background:#e8f5e9;color:#1b5e20;border:1px solid #2e7d32}.error{padding:14px;border-radius:12px;background:#ffebee;color:#b00020;border:1px solid #c62828}img,video{display:block;max-width:100%;height:auto;border-radius:12px;border:1px solid #ddd;background:#fafafa}.split{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}.pane-title{font-weight:bold;margin:0 0 8px}.info-grid{display:grid;grid-template-columns:1fr;gap:16px;margin:16px 0}.gift-badge{display:inline-block;border:2px solid #c62828;background:#fff;color:#c62828;border-radius:10px;padding:6px 12px;font-weight:bold;margin:0 0 12px}.small-note{font-size:13px;color:#666;margin-top:8px}.puzzle-parts{margin:16px 0 0;padding:14px;border:2px dashed #111;border-radius:12px;background:#fff}.puzzle-parts strong{display:block;margin-bottom:6px}.puzzle-numbers{font-size:20px;font-weight:bold;letter-spacing:.3px}@media(min-width:700px){.split,.info-grid{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap"><div class="actions"><a class="btn" href="/overview.html">Zur Übersicht</a></div><div class="card"><h1 id="title">Erinnerungsfragment</h1><div class="muted" id="state"></div></div><div class="card" id="content"></div></div>
+<script>
+  const params=new URLSearchParams(location.search); const id=Number(params.get('id')); document.getElementById('title').textContent=`Erinnerungsfragment ${id}`;
+
+  async function fetchFragment(){const res=await fetch('/api/fragment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}); const data=await res.json(); if(!res.ok){document.getElementById('content').innerHTML=`<div class="error">${data.error||'Fehler'}</div>`;return;} render(data);}
+
+  function renderInfoBlock(data){const intro=data.intro_text?`<div><p class="pane-title">Information</p><p>${escapeHtml(data.intro_text)}</p></div>`:''; const showIntroImage=data.intro_image_url && data.type !== 'image_upload'; const introImg=showIntroImage?`<div><p class="pane-title">${data.intro_text?'Infobild':'Bildhinweis'}</p><img src="${data.intro_image_url}" alt="Einleitungsbild" /></div>`:''; if(!intro&&!introImg)return''; if(intro&&introImg)return`<div class="info-grid">${intro}${introImg}</div>`; return`<div style="margin:16px 0">${intro||introImg}</div>`;}
+  function renderGift(data){return data.is_gift?`<div class="gift-badge">Geschenk</div>`:'';}
+  function renderPuzzleParts(puzzleNumbers){if(!puzzleNumbers)return'';return`<div class="puzzle-parts"><strong>Puzzleteile aus dem Agentenbüro</strong><div>Nimm dir diese Puzzleteile für das große Puzzle:</div><div class="puzzle-numbers">${escapeHtml(String(puzzleNumbers).replace(/;/g, ', '))}</div></div>`;}
+  function renderQuestion(data){return`<p><strong>Frage:</strong> ${escapeHtml(data.question||'')}</p>`;}
+  function isUploadType(type){return type==='image_upload'||type==='mission';}
+  function isVideoUrl(url){return /\.(mp4|mov|m4v|webm)(\?|#|$)/i.test(String(url||''));}
+  function renderMedia(url, alt){if(!url)return'<p>Keine Datei gespeichert.</p>'; if(isVideoUrl(url))return`<video controls playsinline preload="metadata"><source src="${url}">Dein Browser kann dieses Video nicht anzeigen.</video>`; return`<img src="${url}" alt="${escapeHtml(alt||'Datei')}" />`;}
+
+  function render(data){const state=document.getElementById('state'); const content=document.getElementById('content'); const gift=renderGift(data), info=renderInfoBlock(data), questionBlock=renderQuestion(data), puzzleParts=renderPuzzleParts(data.puzzle_numbers);
+    if(data.is_solved){
+      state.textContent='Dieses Erinnerungsfragment wurde bereits freigeschaltet.';
+      if(data.type==='image_upload'){
+        const left=data.reference_image_url?renderMedia(data.reference_image_url,'Vorgabebild'):'<p>Kein Vorgabebild hinterlegt.</p>';
+        const right=data.uploaded_image_url?renderMedia(data.uploaded_image_url,'Hochgeladene Datei'):'<p>Keine hochgeladene Datei gespeichert.</p>';
+        content.innerHTML=`${gift}${info}${questionBlock}<div class="split"><div><p class="pane-title">Vorgabe</p>${left}</div><div><p class="pane-title">Hochgeladen</p>${right}</div></div>${puzzleParts}<div class="actions"><a class="btn" href="/overview.html">Eine weitere Erinnerung freischalten</a></div>`;
+      } else if(data.type==='mission'){
+        const uploaded=data.uploaded_image_url?renderMedia(data.uploaded_image_url,'Hochgeladene Datei'):'<p>Keine hochgeladene Datei gespeichert.</p>';
+        content.innerHTML=`${gift}${info}${questionBlock}<p class="pane-title">Hochgeladene Mission</p>${uploaded}${puzzleParts}<div class="actions"><a class="btn" href="/overview.html">Eine weitere Erinnerung freischalten</a></div>`;
+      } else {
+        content.innerHTML=`${gift}${info}${questionBlock}<p><strong>Richtige Lösung:</strong> ${escapeHtml(data.answer_main||'')}</p>${puzzleParts}<div class="actions"><a class="btn" href="/overview.html">Eine weitere Erinnerung freischalten</a></div>`;
+      }
+    } else {
+      state.textContent='Dieses Erinnerungsfragment ist noch nicht freigeschaltet.';
+      if(isUploadType(data.type)){
+        const isMission=data.type==='mission';
+        const reference=(!isMission&&data.reference_image_url)?`<div style="margin:14px 0 16px"><p class="pane-title">Vorgabebild</p>${renderMedia(data.reference_image_url,'Vorgabebild')}</div>`:'';
+        const accept=isMission?'image/*,video/*':'image/*';
+        const label=isMission?'Foto oder Video hochladen':'Bild hochladen';
+        const note=isMission?'<p class="small-note">Hinweis: Videos bitte möglichst kurz und klein halten. Für große Videos müsste später ein Direkt-Upload ergänzt werden.</p>':'';
+        content.innerHTML=`${gift}${info}${questionBlock}${reference}<input id="imageInput" type="file" accept="${accept}" />${note}<div class="actions"><button class="btn" onclick="uploadFile()">${label}</button></div><div id="msg" style="margin-top:12px"></div>`;
+      } else {
+        content.innerHTML=`${gift}${info}${questionBlock}<p>Gib die Lösung für dieses Erinnerungsfragment ein.</p><input id="answerInput" type="text" autocomplete="off" /><div class="actions"><button class="btn" onclick="submitAnswer()">Lösung prüfen</button></div><div id="msg" style="margin-top:12px"></div>`;
+      }
+    }
+  }
+
+  function renderPostSubmit(success,puzzleNumbers){const state=document.getElementById('state'); const content=document.getElementById('content'); state.textContent=success?'Dieses Erinnerungsfragment wurde soeben freigeschaltet.':'Dieses Erinnerungsfragment ist noch nicht freigeschaltet.'; const puzzle=success?renderPuzzleParts(puzzleNumbers):''; content.innerHTML=`<div class="${success?'success':'error'}">${success?'Prima, Du hast Norbert verholfen seine Erinnerung zurückzugewinnen. Füge dein Erinnerungsfragment in das Puzzle ein.':'Das war leider nicht richtig.'}</div>${puzzle}<div class="actions"><a class="btn" href="/overview.html">Eine weitere Erinnerung freischalten</a><a class="btn" href="/overview.html">Zur Übersicht</a></div>`;}
+  async function submitAnswer(){const answer=document.getElementById('answerInput').value; const res=await fetch('/api/submit-text',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,answer})}); const data=await res.json(); renderPostSubmit(!!(res.ok&&data.correct), data.puzzle_numbers || '');}
+
+  async function compressImageToDataUrl(file){const img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=URL.createObjectURL(file);}); const maxW=1400; const scale=Math.min(1,maxW/img.width); const canvas=document.createElement('canvas'); canvas.width=Math.round(img.width*scale); canvas.height=Math.round(img.height*scale); canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height); return canvas.toDataURL('image/jpeg',0.7);}
+  async function fileToDataUrl(file){return await new Promise((resolve,reject)=>{const reader=new FileReader(); reader.onload=()=>resolve(reader.result); reader.onerror=reject; reader.readAsDataURL(file);});}
+
+  async function uploadFile(){const file=document.getElementById('imageInput').files?.[0]; const msg=document.getElementById('msg'); if(!file){if(msg){msg.className='error';msg.textContent='Bitte zuerst eine Datei auswählen.';}return;}
+    const isVideo=file.type.startsWith('video/'); const maxVideoBytes=4*1024*1024;
+    if(isVideo && file.size>maxVideoBytes){if(msg){msg.className='error';msg.textContent='Das Video ist für den Schnell-Upload zu groß. Bitte ein sehr kurzes/komprimiertes Video unter 4 MB verwenden oder stattdessen ein Foto hochladen.';}return;}
+    if(msg){msg.className='';msg.textContent='Datei wird hochgeladen...';}
+    const fileDataUrl=file.type.startsWith('image/')?await compressImageToDataUrl(file):await fileToDataUrl(file);
+    const res=await fetch('/api/upload-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,fileDataUrl})}); const data=await res.json(); if(res.ok) renderPostSubmit(true, data.puzzle_numbers || ''); else if(msg){msg.className='error';msg.textContent=data.error||'Upload fehlgeschlagen.';}}
+  function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+  fetchFragment();
+</script>
+</body>
+</html>
